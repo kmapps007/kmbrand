@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#102d50">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BNSCC Library">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BNSCC Library Card Management</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+:root{--navy:#102d50;--gold:#c8a65d;--ink:#172337}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#e9eef5;color:var(--ink);font-family:"Hind Siliguri",Arial,sans-serif}
+.toolbar{max-width:1100px;margin:0 auto 18px;padding:20px;background:#fff;border-radius:14px;box-shadow:0 5px 24px #102d5015}
+h1{font-size:24px;color:var(--navy);margin:0 0 5px}
+.toolbar p{margin:5px 0 14px;color:#526176}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+button,.upload{display:inline-flex;align-items:center;justify-content:center;padding:9px 13px;min-height:40px;border:0;border-radius:8px;background:var(--navy);color:white;font:inherit;cursor:pointer}
+.upload{cursor:pointer}
+button.gold{background:#92702d}
+button.light{background:#e8edf4;color:var(--navy)}
+select{font:inherit;padding:9px;border:1px solid var(--gold);border-radius:8px}
+#status{font-size:14px;margin-top:12px;color:#35506c}
+.help{max-width:1100px;margin:0 auto 18px;background:#fff9e9;padding:12px 15px;border-left:4px solid var(--gold);font-size:14px}
+.sheet{width:210mm;min-height:297mm;margin:0 auto 22px;padding:8mm;background:white;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:3mm;overflow:hidden;box-shadow:0 4px 20px #102d5020;break-after:page;page-break-after:always}
+.sheet:last-child{break-after:auto;page-break-after:auto}
+.library-card{position:relative;min-width:0;min-height:0;padding:2mm;border:1px dashed #7c8796;overflow:hidden;display:flex;flex-direction:column;font-weight:700}
+.card-frame{flex:1;min-height:0;display:flex;flex-direction:column;border:1.4px solid var(--gold);overflow:hidden}
+.card-header{background:var(--navy);color:white;text-align:center;padding:2mm 1mm;border-bottom:2px solid var(--gold)}
+.emblem{width:12mm;height:12mm;margin:0 auto 1mm;border:1px solid var(--gold);border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:white;color:var(--navy);font-weight:700;font-size:9px}
+.emblem img{width:100%;height:100%;object-fit:contain}
+.school-name{font-size:10px;line-height:1.4;font-weight:700}
+.school-subtitle{font-size:8px;color:#f2d99d;font-weight:700}
+.card-title{background:#f4ead1;color:var(--navy);text-align:center;font-size:10px;font-weight:700;padding:1.2mm}
+.card-body{padding:2mm;display:flex;flex-direction:column;gap:1.5mm;flex:1;min-height:0;font-weight:700}
+.top-row{display:flex;gap:2mm;align-items:flex-start}
+.photo-wrap{width:19mm;flex:0 0 19mm}
+.photo-box{width:19mm;height:23mm;border:1px solid #9aa7b5;background:#f0f3f7;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.photo-box img{width:100%;height:100%;object-fit:cover}
+.photo-placeholder{font-size:8px;color:#64748b;font-weight:700}
+.photo-controls{text-align:center;font-size:8px;padding-top:1mm;font-weight:700}
+.photo-controls label{cursor:pointer;text-decoration:underline;color:#174c79;font-weight:700}
+.photo-controls input{display:block;width:1px;height:1px;opacity:0}
+.fields{display:flex;flex-direction:column;gap:1.5mm;flex:1;min-width:0}
+.field{display:flex;align-items:baseline;gap:2px;min-width:0;font-size:9px;line-height:1.3;font-weight:700}
+.field label{flex-shrink:0;font-weight:700}
+.field input{width:100%;min-width:0;border:0;border-bottom:1px dotted #8290a0;background:transparent;outline:none;padding:0 1px;color:#111;font:inherit;font-weight:700}
+.field input:focus{background:#fff8df;border-bottom:1px solid var(--gold)}
+.meta{display:flex;justify-content:center;gap:2px;border-top:1px solid #d6dde5;padding-top:1.5mm;font-size:9px;text-align:center;font-weight:700}
+.signatures{display:flex;gap:4mm;margin-top:auto;padding-top:4mm;font-weight:700}
+.signature{flex:1;border-top:1px solid #6f7c8c;text-align:center;padding-top:1mm;font-size:8px;font-weight:700}
+.card-number{position:absolute;right:3mm;top:3mm;color:#e7d29e;font-size:7px;font-weight:700}
+.no-print{}
+@page{size:A4 portrait;margin:0}
+@media print{
+ body{padding:0;margin:0;background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ .no-print{display:none!important}
+ .sheet{width:210mm;height:297mm;min-height:297mm;margin:0;padding:8mm;box-shadow:none;overflow:hidden}
+ .library-card{break-inside:avoid;page-break-inside:avoid}
+ .field input{color:#111!important;background:transparent!important;font-weight:700!important}
+}
+</style>
+</head>
+<body>
+<section class="toolbar no-print">
+<h1 id="appTitle">⚓ BNSCC লাইব্রেরি কার্ড ব্যবস্থাপনা</h1>
+<p id="appSubtitle">বাংলাদেশ নৌবাহিনী স্কুল ও কলেজ, চট্টগ্রাম</p>
+<div class="actions">
+<label class="upload" for="institutionSelect" id="institutionLabel">প্রতিষ্ঠান নির্বাচন</label>
+<select id="institutionSelect" onchange="setInstitution(this.value)">
+<option value="school">বাংলাদেশ নৌবাহিনী স্কুল ও কলেজ, চট্টগ্রাম</option><option value="college">বাংলাদেশ নৌবাহিনী কলেজ, চট্টগ্রাম</option>
+</select>
+<label class="upload" for="languageSelect" id="languageLabel">🌐 ভাষা / Language</label>
+<select id="languageSelect" onchange="setLanguage(this.value)">
+<option value="bn">🇧🇩 বাংলা</option><option value="en">🇬🇧 English</option>
+</select>
+<label class="upload" for="excelFile" id="excelLabel">📊 Excel / CSV Import</label>
+<input id="excelFile" type="file" accept=".xlsx,.xls,.csv" hidden>
+<label class="upload" for="logoFile" id="logoLabel">🖼️ স্কুলের লোগো আপলোড</label>
+<input id="logoFile" type="file" accept="image/*" hidden>
+<button class="light" id="removeLogoBtn" onclick="removeLogo()">লোগো সরান</button>
+<button id="sampleBtn" onclick="loadSample()">নমুনা তথ্য</button>
+<button class="gold" id="printBtn" onclick="window.print()">🖨 প্রিন্ট / PDF সেভ</button>
+<button class="light" id="resetBtn" onclick="resetCards()">কার্ড রিসেট</button>
+</div>
+<div id="status" role="status">প্রস্তুত। Excel/CSV বা স্কুলের লোগো আপলোড করুন।</div>
+</section>
+<div class="help no-print" id="helpText">নির্দেশনা: ভাষা নির্বাচন করুন, Excel/CSV ইমপোর্ট করুন, লোগো আপলোড করুন এবং প্রতিটি কার্ডের তথ্য ও ছবি সম্পাদনা করুন। প্রিন্টের আগে A4 Preview পরীক্ষা করুন।</div>
+<main id="sheets"></main>
+<script>
+"use strict";
+const i18n={
+bn:{
+title:"⚓ BNSCC লাইব্রেরি কার্ড ব্যবস্থাপনা",
+institutionLabel:"প্রতিষ্ঠান নির্বাচন",
+subtitle:"বাংলাদেশ নৌবাহিনী স্কুল ও কলেজ, চট্টগ্রাম",
+school:"বাংলাদেশ নৌবাহিনী স্কুল ও কলেজ",
+city:"চট্টগ্রাম • শিক্ষাই প্রগতি",
+cardTitle:"লাইব্রেরি ব্যবহারকারীর কার্ড",
+labels:{cardNo:"কার্ড নং",date:"তারিখ",name:"নাম",father:"পিতার নাম",className:"শ্রেণি",section:"শাখা",roll:"রোল",mobile:"মোবাইল"},
+photo:"ছবি",choosePhoto:"ছবি নির্বাচন",member:"লাইব্রেরি ব্যবহারকারীর কার্ড",studentSig:"শিক্ষার্থীর স্বাক্ষর",librarian:"লাইব্রেরিয়ান স্বাক্ষর",
+excel:"📊 Excel / CSV Import",logo:"🖼️ স্কুলের লোগো আপলোড",removeLogo:"লোগো সরান",sample:"নমুনা তথ্য",print:"🖨 প্রিন্ট / PDF সেভ",reset:"কার্ড রিসেট",
+help:"নির্দেশনা: ভাষা নির্বাচন করুন, Excel/CSV ইমপোর্ট করুন, লোগো আপলোড করুন এবং প্রতিটি কার্ডের তথ্য ও ছবি সম্পাদনা করুন। প্রিন্টের আগে A4 Preview পরীক্ষা করুন।",
+ready:"প্রস্তুত। Excel/CSV বা স্কুলের লোগো আপলোড করুন。"
+},
+en:{
+title:"⚓ BNSCC Library Card Management",
+institutionLabel:"Select Institution",
+subtitle:"Bangladesh Navy School & College, Chattogram",
+school:"Bangladesh Navy School & College",
+city:"Chattogram • Education is Progress",
+cardTitle:"LIBRARY USER CARD",
+labels:{cardNo:"Card No",date:"Date",name:"Name",father:"Father's Name",className:"Class",section:"Section",roll:"Roll",mobile:"Mobile"},
+photo:"Photo",choosePhoto:"Choose Photo",member:"Library User Card",studentSig:"Student Signature",librarian:"Librarian Signature",
+excel:"📊 Excel / CSV Import",logo:"🖼️ Import School Logo",removeLogo:"Remove Logo",sample:"Sample Data",print:"🖨 Print / Save PDF",reset:"Reset Cards",
+help:"Instructions: Select a language, import Excel/CSV, upload the school logo, and edit each card's information and photo. Check the A4 print preview before printing.",
+ready:"Ready. Import an Excel/CSV file or upload the school logo."
+}
+};
+const fields=[{key:"cardNo"},{key:"date"},{key:"name"},{key:"father"},{key:"className"},{key:"section"},{key:"roll"},{key:"mobile"}];
+const aliases={
+cardNo:["card no","cardno","card number","কার্ড নং","কার্ড নম্বর"],
+date:["date","তারিখ"],name:["name","student name","নাম","শিক্ষার্থীর নাম"],
+father:["father name","fathername","father","পিতার নাম","অভিভাবকের নাম"],
+className:["class","class name","শ্রেণি","শ্রেণী"],section:["section","শাখা","বিভাগ"],
+roll:["roll","roll no","roll number","রোল","রোল নং"],mobile:["mobile","phone","phone number","মোবাইল","মোবাইল নম্বর","ফোন"]
+};
+const sampleRows=[
+["BNS-001","15-10-2026","মোঃ আরিফ হাসান","মোঃ কামাল হোসেন","ষষ্ঠ","ক","০১","01700000001"],
+["BNS-002","15-10-2026","সাদিয়া আক্তার","মোঃ রফিকুল ইসলাম","ষষ্ঠ","খ","০২","01700000002"],
+["BNS-003","15-10-2026","মাহির আহমেদ","মোঃ জাহিদ হাসান","সপ্তম","ক","০৩","01700000003"],
+["BNS-004","15-10-2026","তানজিম রহমান","মোঃ আব্দুল্লাহ","সপ্তম","খ","০৪","01700000004"],
+["BNS-005","15-10-2026","নুসরাত জাহান","মোঃ সাইফুল ইসলাম","অষ্টম","ক","০৫","01700000005"],
+["BNS-006","15-10-2026","রায়হান কবির","মোঃ মিজানুর রহমান","অষ্টম","খ","০৬","01700000006"],
+["BNS-007","15-10-2026","ফারিহা ইসলাম","মোঃ আনোয়ার হোসেন","নবম","ক","০৭","01700000007"],
+["BNS-008","15-10-2026","তামিম আহমেদ","মোঃ নাসির উদ্দিন","নবম","খ","০৮","01700000008"],
+["BNS-009","15-10-2026","আয়েশা সিদ্দিকা","মোঃ সেলিম","দশম","ক","০৯","01700000009"]
+];
+let lang="bn",institution="school",records=[],photoUrls=[],logoDataUrl="";
+const tr=()=>i18n[lang];
+function emptyRecord(){return{cardNo:"",date:"",name:"",father:"",className:"",section:"",roll:"",mobile:""}}
+function setStatus(s){document.getElementById("status").textContent=s}
+function institutionName(key,language){
+const names={school:{bn:"বাংলাদেশ নৌবাহিনী স্কুল ও কলেজ, চট্টগ্রাম",en:"Bangladesh Navy School & College, Chattogram"},college:{bn:"বাংলাদেশ নৌবাহিনী কলেজ, চট্টগ্রাম",en:"Bangladesh Navy College, Chattogram"}};
+return names[key][language];
+}
+function setInstitution(value){
+institution=value==="college"?"college":"school";
+document.getElementById("institutionSelect").value=institution;
+i18n.bn.school=institutionName(institution,"bn");i18n.en.school=institutionName(institution,"en");
+i18n.bn.subtitle=i18n.bn.school;i18n.en.subtitle=i18n.en.school;
+document.getElementById("appSubtitle").textContent=tr().subtitle;
+renderCards();setStatus(lang==="en"?"Institution updated for all cards.":"সব কার্ডে প্রতিষ্ঠান পরিবর্তন হয়েছে।");
+}
+function setLanguage(value){
+lang=value==="en"?"en":"bn";document.documentElement.lang=lang;
+i18n.bn.school=institutionName(institution,"bn");i18n.en.school=institutionName(institution,"en");i18n.bn.subtitle=i18n.bn.school;i18n.en.subtitle=i18n.en.school;
+document.getElementById("institutionLabel").textContent=tr().institutionLabel;
+document.getElementById("appTitle").textContent=tr().title;
+document.getElementById("appSubtitle").textContent=tr().subtitle;
+document.getElementById("languageLabel").textContent=lang==="en"?"🌐 Language / ভাষা":"🌐 ভাষা / Language";
+document.getElementById("excelLabel").textContent=tr().excel;
+document.getElementById("logoLabel").textContent=tr().logo;
+document.getElementById("removeLogoBtn").textContent=tr().removeLogo;
+document.getElementById("sampleBtn").textContent=tr().sample;
+document.getElementById("printBtn").textContent=tr().print;
+document.getElementById("resetBtn").textContent=tr().reset;
+document.getElementById("helpText").textContent=tr().help;
+renderCards();setStatus(tr().ready);
+}
+function loadSample(){
+records=sampleRows.map(row=>{const r=emptyRecord();fields.forEach((f,i)=>r[f.key]=row[i]??"");return r});
+photoUrls=records.map(()=>"");renderCards();setStatus(lang==="en"?"9 sample cards loaded.":"৯টি নমুনা কার্ড লোড হয়েছে।");
+}
+function resetCards(){
+document.getElementById("institutionSelect").value="school";setInstitution("school");
+records=Array.from({length:9},()=>emptyRecord());photoUrls=records.map(()=>"");
+renderCards();setStatus(lang==="en"?"Card data reset. Logo retained.":"কার্ড রিসেট হয়েছে। লোগো রাখা হয়েছে।");
+}
+function removeLogo(){logoDataUrl="";document.getElementById("logoFile").value="";renderCards();setStatus(lang==="en"?"Logo removed.":"লোগো সরানো হয়েছে।")}
+document.getElementById("logoFile").addEventListener("change",e=>{
+const file=e.target.files&&e.target.files[0];if(!file)return;
+if(!file.type.startsWith("image/")){setStatus("Please select a valid image.");return}
+const reader=new FileReader();reader.onload=()=>{logoDataUrl=String(reader.result);renderCards();setStatus(lang==="en"?"Logo applied to all cards.":"সব কার্ডে লোগো যুক্ত হয়েছে।")};
+reader.onerror=()=>setStatus("Could not read logo file.");reader.readAsDataURL(file);
+});
+function makeField(key,value,index){
+const wrap=document.createElement("div");wrap.className="field";
+const label=document.createElement("label");label.textContent=tr().labels[key]+":";
+const input=document.createElement("input");input.type="text";input.value=value||"";input.setAttribute("aria-label",tr().labels[key]);
+input.addEventListener("input",()=>records[index][key]=input.value);
+wrap.append(label,input);return wrap;
+}
+function createCard(record,index){
+const t=tr(),card=document.createElement("article");card.className="library-card";
+const frame=document.createElement("div");frame.className="card-frame";
+const header=document.createElement("header");header.className="card-header";
+const emblem=document.createElement("div");emblem.className="emblem";
+if(logoDataUrl){const img=document.createElement("img");img.src=logoDataUrl;img.alt="School Logo";emblem.appendChild(img)}
+else emblem.textContent="";
+const school=document.createElement("div");school.className="school-name";school.textContent=t.school;
+const city=document.createElement("div");city.className="school-subtitle";city.textContent=t.city;
+header.append(emblem,school,city);
+const title=document.createElement("div");title.className="card-title";title.textContent=t.cardTitle;
+const body=document.createElement("div");body.className="card-body";
+const top=document.createElement("div");top.className="top-row";
+const photoWrap=document.createElement("div");photoWrap.className="photo-wrap";
+const photo=document.createElement("div");photo.className="photo-box";
+if(photoUrls[index]){const img=document.createElement("img");img.src=photoUrls[index];img.alt=t.photo;photo.appendChild(img)}
+else{const p=document.createElement("div");p.className="photo-placeholder";p.textContent=t.photo;photo.appendChild(p)}
+const controls=document.createElement("div");controls.className="photo-controls no-print";
+const choose=document.createElement("label");choose.textContent=t.choosePhoto;
+const upload=document.createElement("input");upload.type="file";upload.accept="image/*";upload.setAttribute("aria-label",t.choosePhoto);
+upload.addEventListener("change",()=>{
+const file=upload.files&&upload.files[0];if(!file)return;
+if(!file.type.startsWith("image/")){setStatus("Please choose an image file.");return}
+const reader=new FileReader();reader.onload=()=>{photoUrls[index]=String(reader.result);renderCards();setStatus(lang==="en"?"Photo updated.":"ছবি আপডেট হয়েছে।")};reader.readAsDataURL(file);
+});
+choose.appendChild(upload);controls.appendChild(choose);photoWrap.append(photo,controls);
+const topFields=document.createElement("div");topFields.className="fields";
+["cardNo","date","name","father"].forEach(k=>topFields.appendChild(makeField(k,record[k],index)));
+top.append(photoWrap,topFields);
+const lower=document.createElement("div");lower.className="fields";
+["className","section","roll","mobile"].forEach(k=>lower.appendChild(makeField(k,record[k],index)));
+const meta=document.createElement("div");meta.className="meta";
+const member=document.createElement("span");member.textContent=t.member;meta.appendChild(member);
+const sigs=document.createElement("div");sigs.className="signatures";
+const sig1=document.createElement("div");sig1.className="signature";sig1.textContent=t.studentSig;
+const sig2=document.createElement("div");sig2.className="signature";sig2.textContent=t.librarian;
+sigs.append(sig1,sig2);body.append(top,lower,meta,sigs);frame.append(header,title,body);card.appendChild(frame);
+const number=document.createElement("div");number.className="card-number";number.textContent=String(index+1).padStart(2,"0");card.appendChild(number);
+return card;
+}
+function renderCards(){
+const root=document.getElementById("sheets");root.replaceChildren();
+if(!records.length){records=Array.from({length:9},()=>emptyRecord());photoUrls=records.map(()=>"")}
+while(photoUrls.length<records.length)photoUrls.push("");
+for(let start=0;start<records.length;start+=9){
+const sheet=document.createElement("section");sheet.className="sheet";
+const end=Math.min(start+9,records.length);
+for(let i=start;i<end;i++)sheet.appendChild(createCard(records[i],i));
+for(let i=end;i<start+9;i++)sheet.appendChild(createCard(emptyRecord(),i));
+root.appendChild(sheet);
+}
+}
+function normalize(v){return String(v??"").trim().toLowerCase().replace(/[_\-./]+/g," ").replace(/\s+/g," ")}
+function parseRows(rows){
+if(!rows||rows.length<2)throw new Error("Header row and data are required.");
+const headers=rows[0].map(normalize),map={};
+fields.forEach(f=>{const a=aliases[f.key].map(normalize);const i=headers.findIndex(h=>a.includes(h));if(i>=0)map[f.key]=i});
+if(!Object.keys(map).length)throw new Error("No recognized Bengali or English column headers.");
+const out=rows.slice(1).filter(r=>r.some(v=>String(v??"").trim()!=="")).map(row=>{
+const r=emptyRecord();Object.entries(map).forEach(([k,i])=>r[k]=row[i]==null?"":String(row[i]));return r;
+});
+if(!out.length)throw new Error("No data rows found.");return out;
+}
+function parseCSV(text){
+const rows=[];let row=[],cell="",quoted=false;
+for(let i=0;i<text.length;i++){
+const c=text[i];
+if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}
+else if(c===","&&!quoted){row.push(cell);cell=""}
+else if((c==="\n"||c==="\r")&&!quoted){if(c==="\r"&&text[i+1]==="\n")i++;row.push(cell);rows.push(row);row=[];cell=""}
+else cell+=c;
+}
+if(cell.length||row.length){row.push(cell);rows.push(row)}return rows;
+}
+document.getElementById("excelFile").addEventListener("change",async e=>{
+const file=e.target.files&&e.target.files[0];if(!file)return;
+try{
+let rows;
+if(file.name.toLowerCase().endsWith(".csv"))rows=parseCSV((await file.text()).replace(/^\uFEFF/,""));
+else{
+if(!window.XLSX)throw new Error("Excel library unavailable. Use internet or import CSV.");
+const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+}
+records=parseRows(rows);photoUrls=records.map(()=>"");renderCards();
+setStatus(records.length+(lang==="en"?" records imported. Pages: ":"টি রেকর্ড ইমপোর্ট হয়েছে। পৃষ্ঠা: ")+Math.ceil(records.length/9));
+}catch(err){setStatus("Import error: "+err.message)}finally{e.target.value=""}
+});
+loadSample();
+</script>
+
+<script>
+// PWA Install & Service Worker
+let deferredPrompt;
+const installBtn = document.createElement('button');
+installBtn.id = 'pwaInstallBtn';
+installBtn.className = 'gold no-print';
+installBtn.style.display = 'none';
+installBtn.innerHTML = '📲 অ্যাপ ইন্সটল করুন';
+document.addEventListener('DOMContentLoaded', ()=>{
+  const actions = document.querySelector('.actions');
+  if(actions) actions.appendChild(installBtn);
+});
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'inline-flex';
+});
+
+installBtn.addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if(outcome === 'accepted'){
+    installBtn.style.display='none';
+    setStatus('অ্যাপ ইন্সটল হচ্ছে...');
+  }
+  deferredPrompt = null;
+});
+
+window.addEventListener('appinstalled', ()=>{
+  installBtn.style.display='none';
+  setStatus('✅ অ্যাপ সফলভাবে ইন্সটল হয়েছে!');
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=> console.log('SW registered', reg.scope))
+      .catch(err=> console.log('SW failed', err));
+  });
+}
+</script>
+
+</body>
+</html>
+
+
+এটাকে PWA হিসেবে installable করে দেন, যাতে মোবাইলে App এর মতো ইন্সটল হয়।
